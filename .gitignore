@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# Django stuff:
+db.sqlite3
+*.sqlite3
+*.log
+media/
+staticfiles/
+static_root/
+local_settings.py
+
+# VS Code
+.vscode/
+.history/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+
+# Pytest cache
+.pytest_cache/
+
+# Celery beat schedule
+celerybeat-schedule
+celerybeat.pid
+
+# Coverage reports
+htmlcov/
+.coverage
+.tox/
+.nox/
+.cache/
