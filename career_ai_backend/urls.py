@@ -11,6 +11,8 @@ urlpatterns = [
     path('api/ai/', include('ai_services.urls')),
     path('api/analytics/', include('analytics.urls')),
     path('api/recruiter/', include('recruiter_urls')),
+    path('api/interviews/', include('interviews.urls')),
+    path('api/', include('utils_urls')),
 ]
 
 if settings.DEBUG:
