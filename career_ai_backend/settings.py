@@ -226,3 +226,4 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
 # AI Services Configuration
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
