@@ -113,3 +113,67 @@ def resume_analyses(request):
             {"error": "No resume found"}, 
             status=status.HTTP_404_NOT_FOUND
         )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_cover_letter(request):
+    """Generate a cover letter for a specific job"""
+    try:
+        job_id = request.data.get('job_id')
+        custom_details = request.data.get('custom_details', '')
+        
+        if not job_id:
+            return Response(
+                {"error": "job_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the job details
+        from jobs.models import Job
+        try:
+            job = Job.objects.get(id=job_id)
+        except Job.DoesNotExist:
+            return Response(
+                {"error": "Job not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get user's resume for context
+        try:
+            resume = Resume.objects.get(user=request.user)
+            user_skills = request.user.skills or []
+            user_experience = resume.parsed_data.get('work_experience', []) if resume.parsed_data else []
+        except Resume.DoesNotExist:
+            # Use user profile data if no resume
+            user_skills = request.user.skills or []
+            user_experience = []
+        
+        # Generate cover letter content
+        cover_letter = f"""Dear Hiring Manager,
+
+I am writing to express my strong interest in the {job.title} position at {job.company}. With my background and skills in {', '.join(user_skills[:3]) if user_skills else 'software development'}, I am excited about the opportunity to contribute to your team.
+
+Based on the job requirements, I believe my experience aligns well with what you're looking for:
+
+{f'• Relevant experience in {", ".join([exp.get("company", "various companies") for exp in user_experience[:2]])}' if user_experience else '• Strong technical background and passion for learning'}
+• Proficiency in {', '.join(job.skills[:3]) if job.skills else 'the required technologies'}
+• {custom_details if custom_details else 'Proven ability to work collaboratively in team environments'}
+
+I am particularly drawn to this role because of {job.company}'s reputation and the exciting challenges it presents. The opportunity to work on {job.title.lower()} projects aligns perfectly with my career goals and technical interests.
+
+Thank you for considering my application. I would welcome the opportunity to discuss how my skills and enthusiasm can contribute to your team's success.
+
+Best regards,
+{request.user.first_name} {request.user.last_name}"""
+        
+        return Response({
+            "cover_letter": cover_letter,
+            "job_title": job.title,
+            "company": job.company
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {"error": "Failed to generate cover letter", "detail": str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

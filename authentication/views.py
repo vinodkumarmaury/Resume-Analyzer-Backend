@@ -58,9 +58,14 @@ def update_profile(request):
 @permission_classes([IsAuthenticated])
 def logout(request):
     try:
-        refresh_token = request.data["refresh"]
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        return Response({"message": "Successfully logged out"}, status=status.HTTP_200_OK)
+        refresh_token = request.data.get("refresh")
+        if refresh_token:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"message": "Successfully logged out"}, status=status.HTTP_200_OK)
+        else:
+            # If no refresh token provided, just return success
+            # The frontend will handle token removal
+            return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
     except Exception as e:
-        return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)

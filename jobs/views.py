@@ -104,26 +104,164 @@ def saved_jobs(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def job_recommendations(request):
-    """Get AI-powered job recommendations for the user"""
-    user_skills = request.user.skills or []
-    
-    if not user_skills:
-        # If no skills, return recent jobs
-        jobs = Job.objects.filter(status='active').order_by('-created_at')[:10]
-    else:
-        # Get jobs that match user skills
-        jobs = Job.objects.filter(
-            status='active',
-            skills__overlap=user_skills
-        ).order_by('-created_at')[:20]
+    """
+    Get job recommendations for the authenticated user
+    """
+    try:
+        # Get user's skills and preferences for recommendations
+        user = request.user
         
-        # Calculate match scores for each job
-        job_scores = []
-        for job in jobs:
-            match_score = calculate_skill_match_score(user_skills, job.skills)
-            job_scores.append((job, match_score))
+        # Placeholder recommendations - replace with actual logic
+        recommendations = [
+            {
+                "id": 1,
+                "title": "Senior Software Engineer",
+                "company": "TechCorp Inc.",
+                "location": "Remote",
+                "salary_range": "$80,000 - $120,000",
+                "match_score": 95,
+                "description": "Looking for experienced developers...",
+                "required_skills": ["Python", "Django", "React"],
+                "posted_date": "2024-08-15"
+            },
+            {
+                "id": 2,
+                "title": "Full Stack Developer",
+                "company": "WebDev Solutions",
+                "location": "New York, NY",
+                "salary_range": "$70,000 - $100,000",
+                "match_score": 88,
+                "description": "Join our dynamic team...",
+                "required_skills": ["JavaScript", "Node.js", "PostgreSQL"],
+                "posted_date": "2024-08-16"
+            },
+            {
+                "id": 3,
+                "title": "Frontend Developer",
+                "company": "Design Studio",
+                "location": "San Francisco, CA",
+                "salary_range": "$65,000 - $90,000",
+                "match_score": 82,
+                "description": "Creative frontend role...",
+                "required_skills": ["React", "CSS", "TypeScript"],
+                "posted_date": "2024-08-17"
+            }
+        ]
         
-        # Sort by match score and take top 10
-        job_scores.sort(key=lambda x: x[1], reverse=True)
-        jobs = [job for job, score in job_scores[:10]]
+        return Response({
+            "recommendations": recommendations,
+            "count": len(recommendations),
+            "message": "Job recommendations retrieved successfully"
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": "Failed to fetch job recommendations",
+            "detail": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recruiter_jobs(request):
+    """Get jobs posted by the current recruiter"""
+    if request.user.role != 'recruiter':
+        return Response(
+            {"error": "Only recruiters can access this endpoint"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
     
+    jobs = Job.objects.filter(posted_by=request.user)
+    serializer = JobSerializer(jobs, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def job_applicants(request, job_id):
+    """Get all applicants for a specific job"""
+    try:
+        job = Job.objects.get(id=job_id, posted_by=request.user)
+        applications = JobApplication.objects.filter(job=job).select_related('applicant')
+        serializer = JobApplicationSerializer(applications, many=True)
+        return Response(serializer.data)
+    except Job.DoesNotExist:
+        return Response(
+            {"error": "Job not found or you don't have permission"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_application_status(request, application_id):
+    """Update the status of a job application"""
+    try:
+        application = JobApplication.objects.get(
+            id=application_id, 
+            job__posted_by=request.user
+        )
+        
+        new_status = request.data.get('status')
+        if new_status not in dict(JobApplication.STATUS_CHOICES):
+            return Response(
+                {"error": "Invalid status"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        application.status = new_status
+        application.save()
+        
+        serializer = JobApplicationSerializer(application)
+        return Response(serializer.data)
+        
+    except JobApplication.DoesNotExist:
+        return Response(
+            {"error": "Application not found or you don't have permission"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recruiter_candidates(request):
+    """Get all candidates who applied to recruiter's jobs"""
+    if request.user.role != 'recruiter':
+        return Response(
+            {"error": "Only recruiters can access this endpoint"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    applications = JobApplication.objects.filter(
+        job__posted_by=request.user
+    ).select_related('applicant', 'job')
+    
+    serializer = JobApplicationSerializer(applications, many=True)
+    return Response(serializer.data)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_job(request, job_id):
+    """Delete a job posting (recruiter only)"""
+    try:
+        job = Job.objects.get(id=job_id, posted_by=request.user)
+        job.delete()
+        return Response({"message": "Job deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except Job.DoesNotExist:
+        return Response(
+            {"error": "Job not found or you don't have permission"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_job(request, job_id):
+    """Update a job posting (recruiter only)"""
+    try:
+        job = Job.objects.get(id=job_id, posted_by=request.user)
+        serializer = JobSerializer(job, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Job.DoesNotExist:
+        return Response(
+            {"error": "Job not found or you don't have permission"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )

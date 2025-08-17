@@ -6,4 +6,5 @@ urlpatterns = [
     path('', views.get_resume, name='get-resume'),
     path('analyze/', views.analyze_resume_view, name='analyze-resume'),
     path('analyses/', views.resume_analyses, name='resume-analyses'),
+    path('generate-cover-letter/', views.generate_cover_letter, name='generate-cover-letter'),
 ]

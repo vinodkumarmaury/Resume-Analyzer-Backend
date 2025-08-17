@@ -15,7 +15,12 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'silver-space-waffle-4j7gqvwww662q9vq-8000.app.github.dev',
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -41,7 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -132,15 +137,37 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-# CORS settings
+# CORS settings - Clean up duplicates
+CORS_ALLOW_ALL_ORIGINS = True  # Keep this for now until you test all frontends
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "https://resume-analyzer-nine-khaki.vercel.app",
+    "https://opulent-carnival-5jvr6gxx49p27vr9-5173.app.github.dev",
+    "https://resume-analyzer-gdzzlppir-vinod-kumar-mauryas-projects-152e99ae.vercel.app",
+    "https://resume-analyzer-dvuuo9na8-vinod-kumar-mauryas-projects-152e99ae.vercel.app",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'

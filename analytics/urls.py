@@ -8,4 +8,5 @@ urlpatterns = [
     path('recent-activity/', views.recent_activity, name='recent-activity'),
     path('log-activity/', views.log_activity, name='log-activity'),
     path('track-job-view/', views.track_job_view, name='track-job-view'),
+    path('recruiter/dashboard-stats/', views.recruiter_dashboard_stats, name='recruiter-dashboard-stats'),
 ]
