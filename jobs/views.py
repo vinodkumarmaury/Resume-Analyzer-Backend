@@ -33,6 +33,31 @@ class JobDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
             return [IsAuthenticated()]
         return [AllowAny()]
+    
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        
+        # Add application status for authenticated users
+        if request.user.is_authenticated:
+            has_applied = JobApplication.objects.filter(
+                job=instance, 
+                applicant=request.user
+            ).exists()
+            data['has_applied'] = has_applied
+            
+            # Also check if job is saved
+            is_saved = SavedJob.objects.filter(
+                job=instance,
+                user=request.user
+            ).exists()
+            data['is_saved'] = is_saved
+        else:
+            data['has_applied'] = False
+            data['is_saved'] = False
+            
+        return Response(data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -84,6 +109,52 @@ Best regards,
             {"error": "Job not found"}, 
             status=status.HTTP_404_NOT_FOUND
         )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_application_status(request, job_id):
+    """
+    Check if the current user has already applied to a specific job
+    """
+    try:
+        job = Job.objects.get(id=job_id)
+        
+        has_applied = JobApplication.objects.filter(
+            job=job, 
+            applicant=request.user
+        ).exists()
+        
+        application = None
+        if has_applied:
+            application = JobApplication.objects.get(
+                job=job,
+                applicant=request.user
+            )
+            application_data = {
+                "id": application.id,
+                "status": application.status,
+                "applied_at": application.applied_at,
+                "cover_letter": application.cover_letter
+            }
+        else:
+            application_data = None
+            
+        return Response({
+            "job_id": job_id,
+            "job_title": job.title,
+            "has_applied": has_applied,
+            "application": application_data
+        }, status=status.HTTP_200_OK)
+        
+    except Job.DoesNotExist:
+        return Response({
+            "error": "Job not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            "error": "Failed to check application status",
+            "detail": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
