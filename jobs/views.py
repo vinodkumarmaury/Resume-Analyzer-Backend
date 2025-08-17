@@ -47,14 +47,37 @@ def apply_to_job(request, job_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        cover_letter = request.data.get('cover_letter', '')
+        
+        # If no cover letter provided, generate a basic one
+        if not cover_letter:
+            cover_letter = f"""Dear Hiring Manager,
+
+I am writing to express my interest in the {job.title} position at {job.company}. 
+I believe my skills and experience make me a strong candidate for this role.
+
+I look forward to the opportunity to discuss how I can contribute to your team.
+
+Best regards,
+{request.user.first_name} {request.user.last_name}"""
+        
         application = JobApplication.objects.create(
             job=job,
             applicant=request.user,
-            cover_letter=request.data.get('cover_letter', '')
+            cover_letter=cover_letter
         )
         
         serializer = JobApplicationSerializer(application)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response({
+            "success": True,
+            "message": "Application submitted successfully",
+            "application": serializer.data,
+            "next_steps": [
+                "Your application has been sent to the recruiter",
+                "You will be notified of any updates",
+                "You can track your application status in 'My Applications'"
+            ]
+        }, status=status.HTTP_201_CREATED)
         
     except Job.DoesNotExist:
         return Response(
@@ -77,9 +100,17 @@ def save_job(request, job_id):
         saved_job, created = SavedJob.objects.get_or_create(user=request.user, job=job)
         
         if created:
-            return Response({"message": "Job saved successfully"}, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": "Job bookmarked successfully",
+                "job_id": job_id,
+                "is_saved": True
+            }, status=status.HTTP_201_CREATED)
         else:
-            return Response({"message": "Job already saved"}, status=status.HTTP_200_OK)
+            return Response({
+                "message": "Job already bookmarked",
+                "job_id": job_id,
+                "is_saved": True
+            }, status=status.HTTP_200_OK)
             
     except Job.DoesNotExist:
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -90,9 +121,17 @@ def unsave_job(request, job_id):
     try:
         saved_job = SavedJob.objects.get(user=request.user, job_id=job_id)
         saved_job.delete()
-        return Response({"message": "Job unsaved successfully"}, status=status.HTTP_200_OK)
+        return Response({
+            "message": "Job bookmark removed successfully",
+            "job_id": job_id,
+            "is_saved": False
+        }, status=status.HTTP_200_OK)
     except SavedJob.DoesNotExist:
-        return Response({"error": "Job not in saved list"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({
+            "message": "Job was not bookmarked",
+            "job_id": job_id,
+            "is_saved": False
+        }, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -231,6 +270,36 @@ def recruiter_candidates(request):
     applications = JobApplication.objects.filter(
         job__posted_by=request.user
     ).select_related('applicant', 'job')
+    
+    # Apply filters from query parameters
+    skills = request.GET.get('skills')
+    experience = request.GET.get('experience')
+    location = request.GET.get('location')
+    limit = request.GET.get('limit')
+    
+    if skills:
+        skills_list = [skill.strip() for skill in skills.split(',')]
+        applications = applications.filter(
+            applicant__skills__overlap=skills_list
+        )
+    
+    if experience:
+        applications = applications.filter(
+            applicant__experience_level=experience
+        )
+    
+    if location:
+        applications = applications.filter(
+            applicant__location__icontains=location
+        )
+    
+    # Apply limit if provided
+    if limit:
+        try:
+            limit_int = int(limit)
+            applications = applications[:limit_int]
+        except ValueError:
+            pass
     
     serializer = JobApplicationSerializer(applications, many=True)
     return Response(serializer.data)
