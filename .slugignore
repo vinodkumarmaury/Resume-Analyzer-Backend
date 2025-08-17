@@ -1,0 +1,18 @@
+# Ignore files during deployment to reduce build size
+*.log
+*.pyc
+__pycache__/
+.env
+.git/
+.gitignore
+README.md
+docs/
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache/
+.mypy_cache/
+.DS_Store
+Thumbs.db
