@@ -3,7 +3,12 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 from dotenv import load_dotenv
-import dj_database_url
+
+# Only import dj_database_url if needed
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
 
 load_dotenv()  # This will load environment variables from .env
 
@@ -50,15 +55,21 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Add this for static files
     'django.middleware.security.SecurityMiddleware',
+]
+
+# Add WhiteNoise middleware for production (when DEBUG=False)
+if not DEBUG:
+    MIDDLEWARE.insert(2, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+MIDDLEWARE.extend([
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+])
 
 ROOT_URLCONF = 'career_ai_backend.urls'
 
@@ -82,9 +93,10 @@ WSGI_APPLICATION = 'career_ai_backend.wsgi.application'
 
 # Database
 # Use PostgreSQL on Render, SQLite for local development
-if config('DATABASE_URL', default=''):
+database_url = config('DATABASE_URL', default='')
+if database_url and dj_database_url:
     DATABASES = {
-        'default': dj_database_url.parse(config('DATABASE_URL'))
+        'default': dj_database_url.parse(database_url)
     }
 else:
     DATABASES = {
@@ -120,8 +132,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# WhiteNoise configuration for static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# WhiteNoise configuration for static files (production only)
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
