@@ -2,13 +2,14 @@ import google.generativeai as genai
 from django.conf import settings
 from resumes.utils import calculate_skill_match_score
 from .models import SkillGapAnalysis, LearningPath
-import google.generativeai as genai
 
 def generate_cover_letter(user, job, tone='professional', custom_prompt=''):
     """Generate a personalized cover letter using Gemini AI"""
-    GEMINI_API_KEY = getattr(settings, "GEMINI_API_KEY", None)
+    # Use direct API key for deployment reliability
+    GEMINI_API_KEY = "AIzaSyAb4pCUvMuCyiL_Y3clHlBa6DG6o_axUwg"
+    
     if not GEMINI_API_KEY:
-        print("Gemini AI configuration failed: GEMINI_API_KEY not set in settings.")
+        print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
         return None
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-pro')
@@ -55,9 +56,11 @@ def generate_cover_letter(user, job, tone='professional', custom_prompt=''):
 
 def generate_cold_email(user, job, recruiter_email):
     """Generate a cold email to recruiters using Gemini AI"""
-    GEMINI_API_KEY = getattr(settings, "GEMINI_API_KEY", None)
+    # Use direct API key for deployment reliability
+    GEMINI_API_KEY = "AIzaSyAb4pCUvMuCyiL_Y3clHlBa6DG6o_axUwg"
+    
     if not GEMINI_API_KEY:
-        print("Gemini AI configuration failed: GEMINI_API_KEY not set in settings.")
+        print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
         return None
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-pro')
