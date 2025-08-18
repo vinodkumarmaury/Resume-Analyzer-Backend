@@ -10,9 +10,14 @@ def generate_cover_letter(user, job, tone='professional', custom_prompt=''):
     
     if not GEMINI_API_KEY:
         print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
-        return None
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+        return generate_template_cover_letter(user, job, tone)
+    
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-pro')
+    except Exception as e:
+        print(f"Gemini AI initialization failed: {e}")
+        return generate_template_cover_letter(user, job, tone)
     
     # Build the prompt
     prompt = f"""
@@ -56,14 +61,19 @@ def generate_cover_letter(user, job, tone='professional', custom_prompt=''):
 
 def generate_cold_email(user, job, recruiter_email):
     """Generate a cold email to recruiters using Gemini AI"""
-    # Use direct API key for deployment reliability
-    GEMINI_API_KEY = "AIzaSyAb4pCUvMuCyiL_Y3clHlBa6DG6o_axUwg"
-    
-    if not GEMINI_API_KEY:
-        print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
-        return None
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    try:
+        # Use direct API key for deployment reliability
+        GEMINI_API_KEY = "AIzaSyAb4pCUvMuCyiL_Y3clHlBa6DG6o_axUwg"
+        
+        if not GEMINI_API_KEY:
+            print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
+            return generate_template_cold_email(user, job, recruiter_email)
+        
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-pro')
+    except Exception as e:
+        print(f"Gemini AI configuration error: {e}")
+        return generate_template_cold_email(user, job, recruiter_email)
     
     prompt = f"""
     Generate a professional cold email for reaching out to a recruiter about a job opportunity:
