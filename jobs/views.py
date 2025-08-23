@@ -405,3 +405,19 @@ def update_job(request, job_id):
             {"error": "Job not found or you don't have permission"}, 
             status=status.HTTP_404_NOT_FOUND
         )
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import JobApplication
+from .serializers import JobApplicationSerializer
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def candidate_applications(request):
+    """
+    List all job applications for the logged-in candidate.
+    """
+    applications = JobApplication.objects.filter(applicant=request.user)
+    serializer = JobApplicationSerializer(applications, many=True)
+    return Response(serializer.data)

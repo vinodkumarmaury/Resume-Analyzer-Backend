@@ -7,6 +7,7 @@ from .models import AIGeneratedContent, SkillGapAnalysis
 from .serializers import AIGeneratedContentSerializer, SkillGapAnalysisSerializer
 from .utils import generate_cover_letter, generate_cold_email, analyze_skill_gap
 from jobs.models import Job
+from authentication.serializers import UserSerializer
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -263,3 +264,20 @@ def career_guidance(request):
             {"error": "Failed to generate career guidance", "detail": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def candidate_profile(request, application_id):
+    """
+    Recruiter can view the full profile of a candidate for a specific application.
+    """
+    try:
+        application = JobApplication.objects.get(id=application_id)
+        # Only allow recruiters who posted the job to view
+        if application.job.posted_by != request.user:
+            return Response({'error': 'Not authorized.'}, status=403)
+        candidate = application.applicant
+        data = UserSerializer(candidate).data
+        return Response(data)
+    except JobApplication.DoesNotExist:
+        return Response({'error': 'Application not found.'}, status=404)
