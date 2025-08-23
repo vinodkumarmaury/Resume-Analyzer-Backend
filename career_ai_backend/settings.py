@@ -4,6 +4,7 @@ from decouple import config
 from datetime import timedelta
 from dotenv import load_dotenv
 
+GEMINI_API_KEY = config('GEMINI_API_KEY', default=None)
 # Only import dj_database_url if needed
 try:
     import dj_database_url
@@ -167,12 +168,15 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = False  # Set to False for production security
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "https://resume-analyzer-nine-khaki.vercel.app",
-    "https://opulent-carnival-5jvr6gxx49p27vr9-5173.app.github.dev",
-    "https://resume-analyzer-gdzzlppir-vinod-kumar-mauryas-projects-152e99ae.vercel.app",
-    "https://resume-analyzer-dvuuo9na8-vinod-kumar-mauryas-projects-152e99ae.vercel.app",
-]
+cors_origins = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+if not cors_origins or cors_origins == ['']:
+    cors_origins = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',    
+        'https://silver-space-waffle-4j7gqvwww662q9vq-8000.app.github.dev',
+    ]
+print(f"CORS_ALLOWED_ORIGINS: {cors_origins}")
+CORS_ALLOWED_ORIGINS = cors_origins
 
 # Add security settings for production
 if not DEBUG:

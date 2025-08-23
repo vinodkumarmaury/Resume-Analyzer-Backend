@@ -5,13 +5,11 @@ from .models import SkillGapAnalysis, LearningPath
 
 def generate_cover_letter(user, job, tone='professional', custom_prompt=''):
     """Generate a personalized cover letter using Gemini AI"""
-    # Use direct API key for deployment reliability
-    GEMINI_API_KEY = "AIzaSyAb4pCUvMuCyiL_Y3clHlBa6DG6o_axUwg"
-    
+    # Get Gemini API key from Django settings (which loads from .env)
+    GEMINI_API_KEY = getattr(settings, 'GEMINI_API_KEY', None)
     if not GEMINI_API_KEY:
-        print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
+        print("Gemini AI configuration failed: GEMINI_API_KEY not set in settings.")
         return generate_template_cover_letter(user, job, tone)
-    
     try:
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel('gemini-pro')
@@ -62,13 +60,11 @@ def generate_cover_letter(user, job, tone='professional', custom_prompt=''):
 def generate_cold_email(user, job, recruiter_email):
     """Generate a cold email to recruiters using Gemini AI"""
     try:
-        # Use direct API key for deployment reliability
-        GEMINI_API_KEY = "AIzaSyAb4pCUvMuCyiL_Y3clHlBa6DG6o_axUwg"
-        
+        # Get Gemini API key from Django settings (which loads from .env)
+        GEMINI_API_KEY = getattr(settings, 'GEMINI_API_KEY', None)
         if not GEMINI_API_KEY:
-            print("Gemini AI configuration failed: GEMINI_API_KEY not set.")
+            print("Gemini AI configuration failed: GEMINI_API_KEY not set in settings.")
             return generate_template_cold_email(user, job, recruiter_email)
-        
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel('gemini-pro')
     except Exception as e:
