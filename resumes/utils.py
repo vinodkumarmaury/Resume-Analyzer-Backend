@@ -6,8 +6,8 @@ import re
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from collections import Counter
+import math
 import numpy as np
 from .models import ResumeAnalysis
 from jobs.models import Job
@@ -92,7 +92,7 @@ def parse_resume_text(text):
         'experience': extract_experience(text),
         'education': extract_education(text),
         'sections': identify_sections(text),
-        'keywords': extract_keywords(text)
+        'keywords': extract_keywords_simple(text)
     }
     
     return parsed_data
@@ -256,30 +256,31 @@ def extract_education(text):
     
     return education_section
 
-def extract_keywords(text):
-    """Extract important keywords using TF-IDF"""
+def extract_keywords_simple(text):
+    """Extract important keywords using simple frequency analysis"""
     try:
         # Remove common stop words
         stop_words = set(stopwords.words('english'))
+        
+        # Additional stop words specific to resumes
+        additional_stop_words = {
+            'resume', 'cv', 'curriculum', 'vitae', 'name', 'address', 'phone', 'email',
+            'references', 'available', 'upon', 'request', 'page', 'www', 'http', 'https'
+        }
+        stop_words.update(additional_stop_words)
         
         # Clean text
         cleaned_text = re.sub(r'[^a-zA-Z\s]', '', text.lower())
         words = [word for word in cleaned_text.split() if word not in stop_words and len(word) > 2]
         
-        # Use TF-IDF to find important terms
-        if len(words) > 10:
-            vectorizer = TfidfVectorizer(max_features=50, ngram_range=(1, 2))
-            tfidf_matrix = vectorizer.fit_transform([' '.join(words)])
-            feature_names = vectorizer.get_feature_names_out()
-            tfidf_scores = tfidf_matrix.toarray()[0]
-            
-            # Get top keywords
-            keyword_scores = list(zip(feature_names, tfidf_scores))
-            keyword_scores.sort(key=lambda x: x[1], reverse=True)
-            
-            return [keyword for keyword, score in keyword_scores[:20] if score > 0.1]
+        # Count word frequency
+        word_freq = Counter(words)
         
-        return []
+        # Get top keywords (appearing more than once)
+        keywords = [word for word, freq in word_freq.most_common(30) if freq > 1]
+        
+        return keywords[:20]  # Return top 20
+        
     except Exception as e:
         print(f"Error extracting keywords: {e}")
         return []
@@ -318,25 +319,40 @@ def identify_sections(text):
     
     return sections
 
+def calculate_simple_similarity(text1, text2):
+    """Calculate simple text similarity using word overlap"""
+    try:
+        if not text1 or not text2:
+            return 0.0
+        
+        # Tokenize and clean
+        words1 = set(re.findall(r'\w+', text1.lower()))
+        words2 = set(re.findall(r'\w+', text2.lower()))
+        
+        # Remove stop words
+        stop_words = set(stopwords.words('english'))
+        words1 = words1 - stop_words
+        words2 = words2 - stop_words
+        
+        # Calculate Jaccard similarity
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        if union == 0:
+            return 0.0
+        
+        return (intersection / union) * 100
+        
+    except Exception as e:
+        print(f"Error calculating similarity: {e}")
+        return 0.0
+
 def calculate_skill_match_score(user_skills, job_skills):
-    """Calculate skill match score using TF-IDF and cosine similarity"""
+    """Calculate skill match score using simple string matching"""
     if not user_skills or not job_skills:
         return 0.0
     
     try:
-        # Combine skills into documents
-        user_skills_text = ' '.join(user_skills).lower()
-        job_skills_text = ' '.join(job_skills).lower()
-        
-        # Create TF-IDF vectors
-        vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
-        documents = [user_skills_text, job_skills_text]
-        tfidf_matrix = vectorizer.fit_transform(documents)
-        
-        # Calculate cosine similarity
-        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-        
-        # Also calculate direct skill matches for better accuracy
         user_skills_lower = [skill.lower().strip() for skill in user_skills]
         job_skills_lower = [skill.lower().strip() for skill in job_skills]
         
@@ -356,9 +372,8 @@ def calculate_skill_match_score(user_skills, job_skills):
         
         # Combine scores (weighted average)
         combined_score = (
-            exact_match_score * 0.6 +  # 60% weight for exact matches
-            partial_match_score * 0.3 +  # 30% weight for partial matches
-            similarity * 0.1  # 10% weight for TF-IDF similarity
+            exact_match_score * 0.7 +  # 70% weight for exact matches
+            partial_match_score * 0.3   # 30% weight for partial matches
         )
         
         return min(combined_score * 100, 100.0)
