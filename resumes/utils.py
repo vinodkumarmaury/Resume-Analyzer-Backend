@@ -388,31 +388,8 @@ def calculate_skill_match_score(user_skills, job_skills):
         return (matches / len(job_skills_lower)) * 100 if job_skills_lower else 0
 
 def calculate_text_similarity(text1, text2):
-    """Calculate similarity between two texts using TF-IDF"""
-    try:
-        if not text1 or not text2:
-            return 0.0
-        
-        # Clean and prepare texts
-        texts = [text1.lower(), text2.lower()]
-        
-        # Create TF-IDF vectors
-        vectorizer = TfidfVectorizer(
-            stop_words='english',
-            max_features=1000,
-            ngram_range=(1, 2)
-        )
-        
-        tfidf_matrix = vectorizer.fit_transform(texts)
-        
-        # Calculate cosine similarity
-        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-        
-        return similarity * 100
-        
-    except Exception as e:
-        print(f"Error calculating text similarity: {e}")
-        return 0.0
+    """Calculate similarity between two texts using simple word overlap"""
+    return calculate_simple_similarity(text1, text2)
 
 def enhanced_skill_extraction(text):
     """Enhanced skill extraction with better pattern matching"""
@@ -713,11 +690,10 @@ def identify_improvements(resume):
 def find_missing_keywords(resume, job):
     """Find keywords missing from resume compared to job requirements"""
     resume_text = resume.extracted_text.lower()
-    job_skills = [skill.lower() for skill in job.skills]
-    job_description = job.description.lower()
+    job_skills = [skill.lower() for skill in job.skills] if job.skills else []
     
     # Extract keywords from job description
-    job_keywords = extract_keywords(job.description)
+    job_keywords = extract_keywords_simple(job.description)
     
     missing_keywords = []
     
@@ -728,7 +704,7 @@ def find_missing_keywords(resume, job):
     
     # Check missing job description keywords
     for keyword in job_keywords[:10]:  # Top 10 keywords
-        if keyword not in resume_text and keyword not in missing_keywords:
+        if keyword not in resume_text and keyword.lower() not in missing_keywords:
             missing_keywords.append(keyword.title())
     
-    return missing_keywords[:15]  # Return top 15 missing keywords
+    return list(set(missing_keywords))[:15]  # Return top 15 unique missing keywords
