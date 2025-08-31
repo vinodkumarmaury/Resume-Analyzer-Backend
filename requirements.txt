@@ -35,6 +35,7 @@ certifi==2025.8.3
 
 # Authentication
 PyJWT==2.10.1
+djangorestframework-simplejwt
 
 # Time zones
 pytz==2025.2
