@@ -15,9 +15,7 @@ python-decouple==3.8
 google-generativeai==0.3.2
 
 # Basic NLP (will install model separately in build script)
-spacy>=3.7.0,<3.8.0
 nltk==3.8.1
-scikit-learn==1.3.2
 
 # PDF processing
 PyPDF2==3.0.1
@@ -29,7 +27,6 @@ Pillow==10.1.0
 
 # Essential data processing
 numpy==1.26.4
-pandas>=2.0.0,<3.0.0
 
 # HTTP requests
 requests==2.31.0
