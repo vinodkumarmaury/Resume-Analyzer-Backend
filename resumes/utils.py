@@ -3,13 +3,11 @@ import PyPDF2
 import pdfplumber
 from docx import Document
 import re
-# Remove spacy import
-# import spacy
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from .models import ResumeAnalysis
 from jobs.models import Job
@@ -24,20 +22,6 @@ try:
     nltk.data.find('corpora/stopwords')
 except LookupError:
     nltk.download('stopwords')
-
-# Remove spaCy model loading
-# try:
-#     nlp = spacy.load("en_core_web_sm")
-# except OSError:
-#     print("spaCy model not found. Please install with: python -m spacy download en_core_web_sm")
-#     nlp = None
-
-# Load sentence transformer model for embeddings
-try:
-    embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-except Exception as e:
-    print(f"Error loading sentence transformer: {e}")
-    embedding_model = None
 
 def parse_resume(file_path):
     """Extract text and parse data from resume file"""
@@ -335,29 +319,49 @@ def identify_sections(text):
     return sections
 
 def calculate_skill_match_score(user_skills, job_skills):
-    """Calculate skill match score using embeddings"""
-    if not user_skills or not job_skills or not embedding_model:
+    """Calculate skill match score using TF-IDF and cosine similarity"""
+    if not user_skills or not job_skills:
         return 0.0
     
     try:
-        # Create embeddings
-        user_embeddings = embedding_model.encode(user_skills)
-        job_embeddings = embedding_model.encode(job_skills)
+        # Combine skills into documents
+        user_skills_text = ' '.join(user_skills).lower()
+        job_skills_text = ' '.join(job_skills).lower()
         
-        # Calculate similarity matrix
-        similarities = []
-        for job_skill_emb in job_embeddings:
-            max_sim = 0
-            for user_skill_emb in user_embeddings:
-                sim = np.dot(job_skill_emb, user_skill_emb) / (
-                    np.linalg.norm(job_skill_emb) * np.linalg.norm(user_skill_emb)
-                )
-                max_sim = max(max_sim, sim)
-            similarities.append(max_sim)
+        # Create TF-IDF vectors
+        vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+        documents = [user_skills_text, job_skills_text]
+        tfidf_matrix = vectorizer.fit_transform(documents)
         
-        # Calculate overall match score
-        match_score = np.mean(similarities) * 100
-        return min(match_score, 100.0)
+        # Calculate cosine similarity
+        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+        
+        # Also calculate direct skill matches for better accuracy
+        user_skills_lower = [skill.lower().strip() for skill in user_skills]
+        job_skills_lower = [skill.lower().strip() for skill in job_skills]
+        
+        # Exact matches
+        exact_matches = sum(1 for job_skill in job_skills_lower if job_skill in user_skills_lower)
+        exact_match_score = (exact_matches / len(job_skills_lower)) if job_skills_lower else 0
+        
+        # Partial matches (contains)
+        partial_matches = 0
+        for job_skill in job_skills_lower:
+            for user_skill in user_skills_lower:
+                if job_skill in user_skill or user_skill in job_skill:
+                    partial_matches += 1
+                    break
+        
+        partial_match_score = (partial_matches / len(job_skills_lower)) if job_skills_lower else 0
+        
+        # Combine scores (weighted average)
+        combined_score = (
+            exact_match_score * 0.6 +  # 60% weight for exact matches
+            partial_match_score * 0.3 +  # 30% weight for partial matches
+            similarity * 0.1  # 10% weight for TF-IDF similarity
+        )
+        
+        return min(combined_score * 100, 100.0)
         
     except Exception as e:
         print(f"Error calculating skill match: {e}")
@@ -367,6 +371,120 @@ def calculate_skill_match_score(user_skills, job_skills):
         
         matches = sum(1 for job_skill in job_skills_lower if job_skill in user_skills_lower)
         return (matches / len(job_skills_lower)) * 100 if job_skills_lower else 0
+
+def calculate_text_similarity(text1, text2):
+    """Calculate similarity between two texts using TF-IDF"""
+    try:
+        if not text1 or not text2:
+            return 0.0
+        
+        # Clean and prepare texts
+        texts = [text1.lower(), text2.lower()]
+        
+        # Create TF-IDF vectors
+        vectorizer = TfidfVectorizer(
+            stop_words='english',
+            max_features=1000,
+            ngram_range=(1, 2)
+        )
+        
+        tfidf_matrix = vectorizer.fit_transform(texts)
+        
+        # Calculate cosine similarity
+        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+        
+        return similarity * 100
+        
+    except Exception as e:
+        print(f"Error calculating text similarity: {e}")
+        return 0.0
+
+def enhanced_skill_extraction(text):
+    """Enhanced skill extraction with better pattern matching"""
+    
+    # Comprehensive skill database with variations
+    skill_patterns = {
+        # Programming Languages
+        'python': ['python', 'py'],
+        'javascript': ['javascript', 'js', 'ecmascript'],
+        'java': ['java'],
+        'c++': ['c++', 'cpp', 'c plus plus'],
+        'c#': ['c#', 'csharp', 'c sharp'],
+        'php': ['php'],
+        'ruby': ['ruby'],
+        'go': ['golang', 'go'],
+        'rust': ['rust'],
+        'swift': ['swift'],
+        'kotlin': ['kotlin'],
+        'typescript': ['typescript', 'ts'],
+        'scala': ['scala'],
+        'r': ['r programming', 'r language'],
+        
+        # Web Technologies
+        'html': ['html', 'html5'],
+        'css': ['css', 'css3'],
+        'react': ['react', 'reactjs', 'react.js'],
+        'angular': ['angular', 'angularjs'],
+        'vue': ['vue', 'vuejs', 'vue.js'],
+        'node.js': ['nodejs', 'node.js', 'node js'],
+        'express': ['express', 'expressjs', 'express.js'],
+        'django': ['django'],
+        'flask': ['flask'],
+        'spring': ['spring', 'spring boot'],
+        'laravel': ['laravel'],
+        'rails': ['rails', 'ruby on rails'],
+        
+        # Databases
+        'mysql': ['mysql'],
+        'postgresql': ['postgresql', 'postgres'],
+        'mongodb': ['mongodb', 'mongo'],
+        'redis': ['redis'],
+        'sqlite': ['sqlite'],
+        'oracle': ['oracle', 'oracle db'],
+        
+        # Cloud & DevOps
+        'aws': ['aws', 'amazon web services'],
+        'azure': ['azure', 'microsoft azure'],
+        'gcp': ['gcp', 'google cloud', 'google cloud platform'],
+        'docker': ['docker'],
+        'kubernetes': ['kubernetes', 'k8s'],
+        'jenkins': ['jenkins'],
+        'git': ['git'],
+        
+        # Data Science
+        'machine learning': ['machine learning', 'ml'],
+        'deep learning': ['deep learning', 'dl'],
+        'tensorflow': ['tensorflow'],
+        'pytorch': ['pytorch'],
+        'pandas': ['pandas'],
+        'numpy': ['numpy'],
+        'scikit-learn': ['scikit-learn', 'sklearn'],
+    }
+    
+    found_skills = set()
+    text_lower = text.lower()
+    
+    # Extract skills using patterns
+    for skill, patterns in skill_patterns.items():
+        for pattern in patterns:
+            if pattern in text_lower:
+                found_skills.add(skill.title())
+                break
+    
+    # Additional pattern-based extraction
+    # Look for common skill sections
+    skill_section_pattern = r'(?i)(?:skills?|technologies?|competencies)[\s\n]*[:\-]?\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*(?:[A-Z][^:\n]*:|$))'
+    skill_matches = re.findall(skill_section_pattern, text)
+    
+    for match in skill_matches:
+        # Split by common delimiters
+        skills_in_section = re.split(r'[,;|\n•\-\*]', match)
+        for skill in skills_in_section:
+            skill = skill.strip()
+            if len(skill) > 2 and skill.lower() not in ['and', 'or', 'with', 'including']:
+                found_skills.add(skill.title())
+    
+    return list(found_skills)
 
 def analyze_resume(resume, job_id=None):
     """Analyze resume and provide scoring and recommendations"""
