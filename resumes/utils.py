@@ -3,9 +3,11 @@ import PyPDF2
 import pdfplumber
 from docx import Document
 import re
-import spacy
+# Remove spacy import
+# import spacy
 import nltk
 from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize, sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -23,12 +25,12 @@ try:
 except LookupError:
     nltk.download('stopwords')
 
-# Load spaCy model
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    print("spaCy model not found. Please install with: python -m spacy download en_core_web_sm")
-    nlp = None
+# Remove spaCy model loading
+# try:
+#     nlp = spacy.load("en_core_web_sm")
+# except OSError:
+#     print("spaCy model not found. Please install with: python -m spacy download en_core_web_sm")
+#     nlp = None
 
 # Load sentence transformer model for embeddings
 try:
@@ -149,7 +151,7 @@ def extract_contact_info(text):
     return contact_info
 
 def extract_skills_advanced(text):
-    """Extract skills using NLP and predefined skill lists"""
+    """Extract skills using NLTK and predefined skill lists"""
     
     # Comprehensive skill database
     technical_skills = [
@@ -200,14 +202,19 @@ def extract_skills_advanced(text):
         if skill.lower() in text_lower:
             found_skills.append(skill)
     
-    # Use spaCy for additional skill extraction if available
-    if nlp:
-        doc = nlp(text)
-        for ent in doc.ents:
-            if ent.label_ in ['ORG', 'PRODUCT', 'LANGUAGE'] and ent.text not in found_skills:
-                # Check if it's a known technology
-                if any(tech.lower() in ent.text.lower() for tech in technical_skills):
-                    found_skills.append(ent.text)
+    # Use NLTK for additional entity-like extraction
+    try:
+        tokens = word_tokenize(text)
+        # Look for capitalized words that might be technologies
+        for token in tokens:
+            if token.istitle() and len(token) > 2:
+                # Check if it's similar to known technologies
+                for tech in technical_skills:
+                    if tech.lower() in token.lower() or token.lower() in tech.lower():
+                        if token not in found_skills:
+                            found_skills.append(token)
+    except Exception as e:
+        print(f"Error in NLTK processing: {e}")
     
     return list(set(found_skills))  # Remove duplicates
 
